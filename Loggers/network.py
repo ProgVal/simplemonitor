@@ -68,12 +68,17 @@ class NetworkLogger(Logger):
             send_bytes = struct.pack('B', mac.digest_size) + mac.digest() + p
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             try:
-                s.connect((self.host, self.port))
+                try:
+                    s.connect((self.host, self.port))
+                except socket.error:
+                    s.close()
+                    s = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+                    s.connect((self.host, self.port))
                 s.send(send_bytes)
             finally:
                 s.close()
         except Exception as e:
-            self.logger_logger.error("Failed to send network data")
+            self.logger_logger.error("Failed to send network data: %s" % e)
 
 
 class Listener(Thread):
@@ -89,7 +94,9 @@ class Listener(Thread):
         if key is None or key == "":
             raise util.LoggerConfigurationError("Network logger key is missing")
         Thread.__init__(self)
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        # On Linux, if /proc/sys/net/ipv6/bindv6only=0 (the default), then
+        # the following line also binds on IPv4.
+        self.sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
         self.sock.bind(('', port))
         self.simplemonitor = simplemonitor
         self.key = bytearray(key, 'utf-8')
