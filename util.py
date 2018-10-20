@@ -1,6 +1,7 @@
 """Utilities for SimpleMonitor."""
 
 import re
+import sys
 import json
 import datetime
 import socket
@@ -100,7 +101,7 @@ FORMAT = '%Y-%m-%d %H:%M:%S.%f'
 
 class JSONEncoder(json.JSONEncoder):
     def default(self, obj):
-        if isinstance(obj, datetime):
+        if isinstance(obj, datetime.datetime):
             return {DATETIME_MAGIC_TOKEN: obj.strftime(FORMAT)}
         return super(JSONEncoder, self).default(self, obj)
 
@@ -123,8 +124,15 @@ class JSONDecoder(json.JSONDecoder):
         else:
             return dict(obj)
 
-def json_dumps(data):
-    return JSONEncoder().encode(data)
+if sys.version_info >= (3,):
+    def json_dumps(data):
+        return JSONEncoder().encode(data).encode('ascii')
 
-def json_loads(string):
-    return JSONDecoder().decode(string)
+    def json_loads(string):
+        return JSONDecoder().decode(string.decode('ascii'))
+else:
+    def json_dumps(data):
+        return JSONEncoder().encode(data)
+
+    def json_loads(string):
+        return JSONDecoder().decode(string)
